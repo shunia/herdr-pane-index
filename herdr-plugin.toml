@@ -1,0 +1,87 @@
+id = "shunia.pane-index"
+name = "Pane Index"
+version = "0.1.0"
+min_herdr_version = "0.9.0"
+description = "Show each pane's position (w1:t2:p3) on its top border, keeping the pane's own title as a suffix. Separators and the title width are configurable. Single-pane tabs need pane_borders = \"always\" in the herdr config; split panes already have borders."
+platforms = ["linux", "macos"]
+
+[[startup]]
+command = ["python3", "pane-index.py"]
+
+[[actions]]
+id = "sync"
+title = "Pane Index: resync labels"
+contexts = ["global"]
+command = ["python3", "pane-index.py"]
+
+# Drops this plugin's titles so each pane's own title shows through again, and
+# re-derives the labels from those on the next reconcile. A repair for a stuck
+# label, not a way to switch the plugin off -- `herdr plugin disable` is that.
+[[actions]]
+id = "clear"
+title = "Pane Index: drop labels"
+contexts = ["global"]
+command = ["python3", "pane-index.py", "--clear"]
+
+# Any of these shifts a position somewhere, and a full reconcile is cheap,
+# idempotent, and one snapshot call. Note tab.closed does not actually fire on
+# herdr 0.9.0 when a tab with panes closes -- pane.closed covers that case --
+# but it is declared so the hook is already in place if that changes.
+[[events]]
+on = "workspace.created"
+command = ["python3", "pane-index.py"]
+
+[[events]]
+on = "workspace.closed"
+command = ["python3", "pane-index.py"]
+
+[[events]]
+on = "workspace.moved"
+command = ["python3", "pane-index.py"]
+
+[[events]]
+on = "workspace.reordered"
+command = ["python3", "pane-index.py"]
+
+[[events]]
+on = "workspace.renamed"
+command = ["python3", "pane-index.py"]
+
+[[events]]
+on = "tab.created"
+command = ["python3", "pane-index.py"]
+
+[[events]]
+on = "tab.closed"
+command = ["python3", "pane-index.py"]
+
+[[events]]
+on = "tab.moved"
+command = ["python3", "pane-index.py"]
+
+[[events]]
+on = "tab.renamed"
+command = ["python3", "pane-index.py"]
+
+[[events]]
+on = "pane.created"
+command = ["python3", "pane-index.py"]
+
+[[events]]
+on = "pane.closed"
+command = ["python3", "pane-index.py"]
+
+[[events]]
+on = "pane.moved"
+command = ["python3", "pane-index.py"]
+
+[[events]]
+on = "pane.exited"
+command = ["python3", "pane-index.py"]
+
+# The defence against an agent integration overwriting our label: Command Code
+# re-reports its session title into the same metadata channel, so the first
+# status change after that puts the position back.
+[[events]]
+on = "pane.agent_status_changed"
+command = ["python3", "pane-index.py"]

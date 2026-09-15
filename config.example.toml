@@ -1,0 +1,28 @@
+# Pane Index settings. Everything is optional; the values shown are the defaults.
+# Location: `herdr plugin config-dir shunia.pane-index` / config.toml
+#
+# `#` starts a comment. Text on the right of `=` is taken literally: there are no
+# escape sequences, so "\t" is a backslash and a t, not a tab. Paste the characters
+# you actually want. String values must be quoted.
+#
+# A value that does not fit its setting -- a control character or line separator in
+# a separator, a width that is not a non-negative integer, a quoted "false" where a
+# boolean is expected -- is ignored and the default is used. Each rejection is
+# logged, and `herdr plugin log list --plugin shunia.pane-index` shows it.
+
+# String between the workspace, tab and pane positions.
+#   ":" -> w1:t2:p3      "." -> w1.t2.p3      "" -> w1t2p3
+# separator = ":"
+
+# String between the positions and the pane's own title.
+# title_separator = " - "
+
+# Truncate that title to this many terminal columns. 0 keeps it whole.
+# Herdr itself truncates the finished label to (pane width - 4) columns and
+# offers no setting for it, so this can only ever be tighter, never looser.
+# Herdr also caps a reported title at 80 characters, whatever this says.
+# max_title_width = 0
+
+# Keep a title the pane already carried (usually an agent session name) as the
+# suffix. Off labels panes with the positions only, and stops tracking titles.
+# keep_title = true

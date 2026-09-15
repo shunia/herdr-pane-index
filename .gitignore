@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# A local copy of the plugin config. Runtime config and state live under
+# HERDR_PLUGIN_CONFIG_DIR and HERDR_PLUGIN_STATE_DIR, never here; this only
+# catches a copy dropped in while developing.
+/config.toml
+titles.json
+*.log
+
+# Secrets, in case a development copy ever needs one
+.env
+.env.*
+
+# Editor, OS, and agent scratch
+.DS_Store
+*.swp
+.idea/
+.vscode/
+.commandcode/
