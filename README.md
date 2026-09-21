@@ -12,7 +12,8 @@ pane already had:
 * `w1:t2:p3` is a **position** — first workspace, second tab, third pane — not
   the public id herdr uses elsewhere (`wP:p4`).
 * The trailing part is whatever the pane was already called, so an agent's
-  session name stays visible.
+  session name shows for as long as that agent is running — and goes away with
+  the session instead of lingering on the border.
 * Updates itself on every layout change. Nothing to run by hand.
 * Four optional settings: two separators, a title width cap, and whether to keep
   the pane's title.

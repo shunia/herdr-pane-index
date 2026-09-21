@@ -24,5 +24,8 @@
 # max_title_width = 0
 
 # Keep a title the pane already carried (usually an agent session name) as the
-# suffix. Off labels panes with the positions only, and stops tracking titles.
+# suffix. It is shown only while an agent is running in the pane, and remembered
+# while one is not, so a finished session does not leave its name on the border
+# but a live one whose detection blips gets it straight back. Off labels panes
+# with the positions only, and stops tracking titles.
 # keep_title = true

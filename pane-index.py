@@ -434,7 +434,7 @@ def split_label(current, title_separator):
     return (rest or None), None
 
 
-def derive_label(pane_id, current, positions, settings, titles):
+def derive_label(pane_id, current, positions, settings, titles, has_agent):
     """(<label to publish>, <state entry to record>) for one pane.
 
     The entry is None whenever there is nothing worth recording, which is every
@@ -465,6 +465,14 @@ def derive_label(pane_id, current, positions, settings, titles):
     full = sanitize(full).strip()
     if not full:
         return positions, {"label": positions}
+    if not has_agent:
+        # A session name belongs to a running agent. Our own label is what the
+        # pane's title has been showing, so keeping it here would both mask
+        # whatever the agent left behind and make "a title is still there" true
+        # forever -- the name would outlive the session that earned it. Hide the
+        # suffix instead, and remember the title so an agent that reappears gets
+        # its name back without having to report it again.
+        return positions, {"title": full, "shown": "", "label": positions}
 
     shown = fit_title(full, settings["max_title_width"],
                       TITLE_CHAR_CAP - len(positions)
@@ -500,7 +508,8 @@ def reconcile():
                 continue
 
             current = sanitize(pane.get("title")).strip()
-            label, entry = derive_label(pane_id, current, positions, settings, titles)
+            label, entry = derive_label(pane_id, current, positions, settings,
+                                        titles, bool(pane.get("agent")))
 
             # Record only once the write lands: a failed write must not leave the
             # state claiming a label that is not on the pane.
