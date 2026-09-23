@@ -22,8 +22,12 @@ Settings live in $HERDR_PLUGIN_CONFIG_DIR/config.toml: `separator`,
 """
 try:
     import fcntl
-except ImportError:  # only linux and macos are declared, but do not crash elsewhere
+except ImportError:  # POSIX lock; windows locks through msvcrt instead
     fcntl = None
+try:
+    import msvcrt
+except ImportError:  # windows lock; POSIX locks through fcntl instead
+    msvcrt = None
 import json
 import os
 import re
@@ -283,7 +287,7 @@ def save_titles(titles):
 def call(*args):
     """Run one herdr command."""
     return subprocess.run([HERDR, *args], capture_output=True, text=True,
-                          timeout=COMMAND_TIMEOUT_SECONDS)
+                          encoding="utf-8", timeout=COMMAND_TIMEOUT_SECONDS)
 
 
 def snapshot():
@@ -541,6 +545,30 @@ def clear_all():
         warn(f"could not clear {failed} pane labels")
 
 
+def take_lock(handle, blocking):
+    """Exclusive lock on the reconcile lock file, on either platform.
+
+    fcntl has no Windows twin in the stdlib, so the same file is locked
+    through msvcrt there. msvcrt.locking locks a byte range measured from the
+    handle's position, so the seek pins every call to byte 0.
+    """
+    if fcntl is not None:
+        fcntl.flock(handle, fcntl.LOCK_EX if blocking
+                    else fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return
+    handle.seek(0)
+    msvcrt.locking(handle.fileno(),
+                   msvcrt.LK_LOCK if blocking else msvcrt.LK_NBLCK, 1)
+
+
+def drop_lock(handle):
+    if fcntl is not None:
+        fcntl.flock(handle, fcntl.LOCK_UN)
+        return
+    handle.seek(0)
+    msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+
+
 def run_clear():
     """Clear under the same lock a reconcile takes.
 
@@ -548,16 +576,16 @@ def run_clear():
     cleared one and the labels look like they never went away. Blocking is right
     here: the user asked for this, so waiting beats skipping.
     """
-    if fcntl is None:
+    if fcntl is None and msvcrt is None:
         clear_all()
         return
     with open(plugin_file("reconcile.lock"), "a", encoding="utf-8") as handle:
-        fcntl.flock(handle, fcntl.LOCK_EX)
+        take_lock(handle, True)
         try:
             remove_quietly(plugin_file("reconcile.pending"))
             clear_all()
         finally:
-            fcntl.flock(handle, fcntl.LOCK_UN)
+            drop_lock(handle)
 
 
 def run_reconcile():
@@ -574,7 +602,7 @@ def run_reconcile():
     lock would close that window by giving up the coalescing altogether, which is
     not worth it for scheduling that settles on the next event anyway.
     """
-    if fcntl is None:
+    if fcntl is None and msvcrt is None:
         reconcile()
         return
 
@@ -583,7 +611,7 @@ def run_reconcile():
     # never truncated, and only the path's existence matters here.
     with open(plugin_file("reconcile.lock"), "a", encoding="utf-8") as handle:
         try:
-            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            take_lock(handle, False)
         except OSError:
             with open(pending, "a", encoding="utf-8"):
                 pass
@@ -600,7 +628,7 @@ def run_reconcile():
                         return
             warn("coalescing did not settle; leaving the rest to the next event")
         finally:
-            fcntl.flock(handle, fcntl.LOCK_UN)
+            drop_lock(handle)
 
 
 if __name__ == "__main__":
