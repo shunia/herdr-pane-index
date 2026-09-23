@@ -20,7 +20,9 @@ pane already had:
 
 ## Install
 
-Needs **Python 3** on `PATH`.
+Needs **Python 3** on `PATH`. Every command in the manifest calls `python3`,
+so that is the name to provide: the python.org installer for Windows only
+ships `python` and `py`, and needs a `python3` alias alongside them.
 
 ```bash
 herdr plugin install shunia/herdr-pane-index
@@ -30,7 +32,7 @@ Also give lone panes a border — a single-pane tab has none by default, so ther
 is nothing to write on:
 
 ```toml
-# ~/.config/herdr/config.toml
+# ~/.config/herdr/config.toml, or %APPDATA%\herdr\config.toml on Windows
 [ui]
 pane_borders = "always"
 pane_outer_borders = true
@@ -98,7 +100,8 @@ Both are in herdr's menu, and bindable with `type = "plugin_action"` and
 * **Font size is not settable**, here or anywhere: a terminal cell has no size of
   its own. Colours are herdr's — `[theme.custom] accent` for the focused pane,
   `overlay0` for the rest.
-* Tested on herdr 0.9.0 only, which is what `min_herdr_version` states.
+* Tested on herdr 0.9.0 on linux and macos, and on 0.9.1-preview on windows.
+  `min_herdr_version` stays at 0.9.0.
 
 ## Licence
 
