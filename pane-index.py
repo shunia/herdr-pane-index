@@ -186,6 +186,11 @@ def read_config():
         # UTF-8 at all raises ValueError, which must not reach the caller.
         with open(path, encoding="utf-8-sig") as handle:
             lines = handle.readlines()
+    except FileNotFoundError:
+        # No config file is the normal case -- every setting has a default and
+        # the plugin never writes one itself -- so it is not worth a log line on
+        # every run. Anything else that stops the read still is.
+        return settings
     except (OSError, ValueError) as error:
         warn(f"cannot read {path}: {error}")
         return settings
