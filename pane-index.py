@@ -42,7 +42,9 @@ import unicodedata
 HERDR = os.environ.get("HERDR_BIN_PATH", "herdr")
 # The plugin id, and the metadata source every reported title is attributed to.
 SOURCE = "shunia.pane-index"
-STATE_VERSION = 2
+# 3 records which channel a suffix came from; a 2 entry cannot say, so it is
+# dropped rather than guessed at.
+STATE_VERSION = 3
 STATE_FIELDS = ("title", "shown", "label")
 ELLIPSIS = "…"
 
@@ -251,6 +253,7 @@ def load_titles():
             "title": title,
             "shown": sanitize(entry.get("shown")) if title else "",
             "label": label,
+            "from_osc": entry.get("from_osc") is True,
         }
     if dropped:
         warn(f"dropped {dropped} unusable entries from {path}")
@@ -451,30 +454,42 @@ def derive_label(pane_id, current, positions, settings, titles, has_agent,
         return positions, None
 
     entry = titles.get(pane_id) or {}
+    from_osc = False
     if entry.get("label") == current:
         # Our own output, unchanged. Matching the whole label rather than its
         # shape survives every separator change, and keeps the untruncated title
         # so raising a cap later can widen the label again.
         full = entry.get("title")
+        from_osc = entry.get("from_osc") is True
     else:
         suffix, foreign = split_label(current, settings["title_separator"])
         if foreign:
             # Somebody else's title, usually an agent session name.
             full = foreign
-        elif suffix is not None and suffix != entry.get("shown"):
+        elif entry and suffix is not None and suffix != entry.get("shown"):
             # Our label's shape, but not the text we last wrote.
             full = suffix
         else:
+            # No entry, so this is a label this run cannot attribute -- a
+            # wiped state, or one an older version wrote. Its suffix may be a
+            # copy of a terminal title taken once, which nothing ever
+            # replaces: leave it to the live channels below rather than
+            # freezing on it.
             full = entry.get("title")
 
     # herdr trims a published title, so store the trimmed form: a suffix carrying
     # padding would not match what a later read returns.
     full = sanitize(full).strip()
-    if not full and has_agent:
-        # Nothing on the pane's own title channel, but an agent that never
-        # publishes there still names its session in the terminal title, which
-        # herdr reports separately. Take it rather than lose the suffix.
-        full = sanitize(osc_title).strip()
+    # A suffix taken from the terminal title is read again on every run: nothing
+    # else writes that channel, so the remembered copy would otherwise freeze on
+    # the first name an agent happened to use. It stays as the fallback for a run
+    # where herdr reports no terminal title at all, which is what a restored
+    # session looks like.
+    if has_agent and (from_osc or not full):
+        live = sanitize(osc_title).strip()
+        if live:
+            full = live
+            from_osc = True
     if not full:
         return positions, {"label": positions}
     if not has_agent:
@@ -484,7 +499,8 @@ def derive_label(pane_id, current, positions, settings, titles, has_agent,
         # forever -- the name would outlive the session that earned it. Hide the
         # suffix instead, and remember the title so an agent that reappears gets
         # its name back without having to report it again.
-        return positions, {"title": full, "shown": "", "label": positions}
+        return positions, {"title": full, "shown": "", "label": positions,
+                           "from_osc": from_osc}
 
     shown = fit_title(full, settings["max_title_width"],
                       TITLE_CHAR_CAP - len(positions)
@@ -493,7 +509,8 @@ def derive_label(pane_id, current, positions, settings, titles, has_agent,
     if shown:
         label = positions + settings["title_separator"] + shown
     label = label.strip()
-    return label, {"title": full, "shown": shown, "label": label}
+    return label, {"title": full, "shown": shown, "label": label,
+                   "from_osc": from_osc}
 
 
 def reconcile():
