@@ -15,7 +15,9 @@ Herdr exposes no pane ordinal, so it is derived from two things that are:
 The label is published through pane metadata `--title`, because that is the only
 channel that outranks a manual pane name on the border. Agents (Command Code,
 Claude Code) report their session title into that same channel, so a title the
-pane already carries is preserved as a suffix.
+pane already carries is preserved as a suffix. An agent that never publishes
+there -- Codex reports only a terminal title -- falls back to
+`terminal_title_stripped`, which herdr exposes on the pane.
 
 Settings live in $HERDR_PLUGIN_CONFIG_DIR/config.toml: `separator`,
 `title_separator`, `max_title_width`, `keep_title`.
@@ -438,7 +440,8 @@ def split_label(current, title_separator):
     return (rest or None), None
 
 
-def derive_label(pane_id, current, positions, settings, titles, has_agent):
+def derive_label(pane_id, current, positions, settings, titles, has_agent,
+                 osc_title):
     """(<label to publish>, <state entry to record>) for one pane.
 
     The entry is None whenever there is nothing worth recording, which is every
@@ -467,6 +470,11 @@ def derive_label(pane_id, current, positions, settings, titles, has_agent):
     # herdr trims a published title, so store the trimmed form: a suffix carrying
     # padding would not match what a later read returns.
     full = sanitize(full).strip()
+    if not full and has_agent:
+        # Nothing on the pane's own title channel, but an agent that never
+        # publishes there still names its session in the terminal title, which
+        # herdr reports separately. Take it rather than lose the suffix.
+        full = sanitize(osc_title).strip()
     if not full:
         return positions, {"label": positions}
     if not has_agent:
@@ -513,7 +521,8 @@ def reconcile():
 
             current = sanitize(pane.get("title")).strip()
             label, entry = derive_label(pane_id, current, positions, settings,
-                                        titles, bool(pane.get("agent")))
+                                        titles, bool(pane.get("agent")),
+                                        pane.get("terminal_title_stripped"))
 
             # Record only once the write lands: a failed write must not leave the
             # state claiming a label that is not on the pane.
